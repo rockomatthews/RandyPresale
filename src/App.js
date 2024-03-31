@@ -4,6 +4,8 @@ import { Container } from '@mui/material';
 import PresaleForm from './components/PresaleForm';
 import SignUpForm from './components/SignUpForm';
 import Header from './components/Header';
+import RandyBar from './components/RandyBar';
+
 
 function App() {
   const [walletAddress, setWalletAddress] = useState(null);
@@ -12,44 +14,48 @@ function App() {
 
   useEffect(() => {
     // Check wallet connection when the component mounts
-    checkIfWalletIsConnected();
+    const checkWalletConnection = async () => {
+      try {
+        const { solana } = window;
+
+        if (solana && solana.isPhantom) {
+          console.log('Phantom wallet found!');
+          const response = await solana.connect({ onlyIfTrusted: true });
+          console.log('Connected with Public Key:', response.publicKey.toString());
+          setWalletAddress(response.publicKey.toString());
+        } else {
+          alert('Solana object not found! Get a Phantom Wallet 👻');
+        }
+      } catch (error) {
+        console.error('Error checking wallet connection:', error);
+      }
+    };
+
+    checkWalletConnection();
   }, []);
 
-  const checkIfWalletIsConnected = async () => {
+  const connectWallet = async () => {
     try {
       const { solana } = window;
 
       if (solana) {
-        if (solana.isPhantom) {
-          console.log('Phantom wallet found!');
-          const response = await solana.connect({ onlyIfTrusted: true });
-          console.log(
-            'Connected with Public Key:',
-            response.publicKey.toString()
-          );
-          setWalletAddress(response.publicKey.toString());
-        }
-      } else {
-        alert('Solana object not found! Get a Phantom Wallet 👻');
+        const response = await solana.connect();
+        console.log('Connected with Public Key:', response.publicKey.toString());
+        setWalletAddress(response.publicKey.toString());
       }
     } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const connectWallet = async () => {
-    const { solana } = window;
-
-    if (solana) {
-      const response = await solana.connect();
-      console.log('Connected with Public Key:', response.publicKey.toString());
-      setWalletAddress(response.publicKey.toString());
+      console.error('Error connecting wallet:', error);
     }
   };
 
   const handleSignUp = (email) => {
     setIsAuthenticated(true);
     setUserEmail(email);
+  };
+
+  const handleBuySuccess = (purchasedRandyAmount) => {
+    // Handle the successful purchase of RANDY tokens
+    console.log('Purchased RANDY amount:', purchasedRandyAmount);
   };
 
   return (
@@ -60,11 +66,15 @@ function App() {
         userEmail={userEmail}
         onConnectWallet={connectWallet}
       />
-
+      <RandyBar userEmail={userEmail} onBuySuccess={handleBuySuccess} />
       {!isAuthenticated ? (
         <SignUpForm onSignUp={handleSignUp} />
       ) : (
-        <PresaleForm walletAddress={walletAddress} />
+        <PresaleForm
+          walletAddress={walletAddress}
+          userEmail={userEmail}
+          onBuySuccess={handleBuySuccess}
+        />
       )}
     </Container>
   );

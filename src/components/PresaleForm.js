@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button, Typography, Select, MenuItem, TextField, Box } from '@mui/material';
+import TransactionStatus from './TransactionStatus';
 
 const API_URL = 'https://api.nowpayments.io/v1';
 const API_KEY = '9BTTTGS-3S0M680-P3TMZJK-4HA6C3N'; // Replace with your actual API key
 
-function PresaleForm({ walletAddress, userEmail }) {
+function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
   const [currencies, setCurrencies] = useState([]);
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [amount, setAmount] = useState('');
@@ -15,6 +16,7 @@ function PresaleForm({ walletAddress, userEmail }) {
   const [showPreview, setShowPreview] = useState(false);
   const [paymentCreated, setPaymentCreated] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
+  const [transactionStatus, setTransactionStatus] = useState(null);
 
   useEffect(() => {
     // Get available currencies
@@ -91,12 +93,14 @@ function PresaleForm({ walletAddress, userEmail }) {
 
   const handleBuyClick = () => {
     if (selectedCurrency && amount && parseFloat(amount) >= parseFloat(minimumAmount)) {
+      setTransactionStatus('Awaiting Payment');
+
       // Create payment
       axios.post(`${API_URL}/payment`, {
         price_amount: estimatedPrice,
         price_currency: 'usd',
         pay_currency: selectedCurrency,
-        ipn_callback_url: 'https://your-callback-url.com/ipn', // Replace with your actual callback URL
+        ipn_callback_url: 'https://your-domain.com/ipn-handler', // Replace with your IPN endpoint URL
         order_id: `${userEmail}_${Date.now()}`, // Generate a unique order ID using user email and timestamp
         order_description: 'Purchase of RANDY tokens',
         success_url: 'https://your-success-url.com', // Replace with your own success URL
@@ -110,9 +114,21 @@ function PresaleForm({ walletAddress, userEmail }) {
         .then(response => {
           setPaymentCreated(true);
           setPaymentData(response.data);
+          setTransactionStatus('Processing');
+
+          // Simulate processing delay
+          setTimeout(() => {
+            // Invoke the onBuySuccess callback with the purchased RANDY amount
+            if (onBuySuccess) {
+              const purchasedRandyAmount = estimatedPrice / 0.05;
+              onBuySuccess(purchasedRandyAmount);
+              setTransactionStatus('Complete');
+            }
+          }, 3000); // Adjust the delay as needed
         })
         .catch(error => {
           console.error('Error creating payment:', error);
+          setTransactionStatus(null);
         });
     }
   };
@@ -205,6 +221,8 @@ function PresaleForm({ walletAddress, userEmail }) {
           )}
         </Box>
       )}
+
+      {transactionStatus && <TransactionStatus status={transactionStatus} />}
     </Box>
   );
 }
