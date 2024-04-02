@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container } from '@mui/material';
+import { Container, Box } from '@mui/material';
 import PresaleForm from './components/PresaleForm';
 import SignUpForm from './components/SignUpForm';
 import Header from './components/Header';
@@ -72,29 +72,41 @@ function App() {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Header
-        walletAddress={walletAddress}
-        isAuthenticated={isAuthenticated}
-        userEmail={userEmail}
-        onConnectWallet={connectWallet}
-      />
-      <Spline scene="https://prod.spline.design/oaDQ0P-eu17gfqBy/scene.splinecode" />
-      <RandyBar
-        userEmail={userEmail}
-        remainingRandy={remainingRandy}
-        userMetadata={userMetadata}
-      />
-      {!isAuthenticated ? (
-        <SignUpForm onSignUp={handleSignUp} />
-      ) : (
-        <PresaleForm
+    <Box
+      display="flex"
+      flexDirection="column"
+      minHeight="100vh"
+    >
+      <Container maxWidth="sm">
+        <Header
           walletAddress={walletAddress}
+          isAuthenticated={isAuthenticated}
           userEmail={userEmail}
-          onBuySuccess={handleBuySuccess}
+          onConnectWallet={connectWallet}
         />
-      )}
-    </Container>
+        <RandyBar
+          userEmail={userEmail}
+          remainingRandy={remainingRandy}
+          userMetadata={userMetadata}
+        />
+        {!isAuthenticated ? (
+          <SignUpForm onSignUp={handleSignUp} />
+        ) : (
+          <PresaleForm
+            walletAddress={walletAddress}
+            userEmail={userEmail}
+            onBuySuccess={handleBuySuccess}
+          />
+        )}
+      </Container>
+      <Box
+        width="100%"
+        flexGrow={1}
+        marginTop={4}
+      >
+        <Spline scene="https://prod.spline.design/oaDQ0P-eu17gfqBy/scene.splinecode" />
+      </Box>
+    </Box>
   );
 }
 
