@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect } from 'react';
 import { Container } from '@mui/material';
 import PresaleForm from './components/PresaleForm';

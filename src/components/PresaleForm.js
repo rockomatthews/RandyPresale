@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button, Typography, Select, MenuItem, TextField, Box } from '@mui/material';
 import TransactionStatus from './TransactionStatus';
-import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
-import { useSelector, useDispatch } from 'react-redux';
-import { updateTransactionStatus } from '../store/actions/transactionActions';
 
 const API_URL = 'https://api.nowpayments.io/v1';
 const API_KEY = '9BTTTGS-3S0M680-P3TMZJK-4HA6C3N'; // Replace with your actual API key
@@ -19,10 +16,6 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
   const [paymentCreated, setPaymentCreated] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
   const [transactionStatus, setTransactionStatus] = useState(null);
-  const [countdown, setCountdown] = useState(null);
-
-  const dispatch = useDispatch();
-  const transactions = useSelector((state) => state.transactions);
 
   useEffect(() => {
     // Get available currencies
@@ -100,53 +93,12 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
     }
   };
 
-  const processPayment = async () => {
-    try {
-      const connection = new Connection('https://api.mainnet-beta.solana.com');
-      const recipientPublicKey = new PublicKey('53ERkAByR893E5iFu25XemeKUJ12cAgY87J5Zcagw3nj');
-
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: new PublicKey(walletAddress),
-          toPubkey: recipientPublicKey,
-          lamports: estimatedPrice * 1e9, // Convert to lamports (1 SOL = 1e9 lamports)
-        })
-      );
-
-      const { signature } = await window.solana.signAndSendTransaction(transaction);
-      await connection.confirmTransaction(signature);
-
-      console.log('Payment processed successfully');
-      dispatch(updateTransactionStatus(paymentData.payment_id, 'Complete'));
-
-      // Update user metadata
-      const response = await axios.post('/api/update-metadata', {
-        userEmail,
-        randyBalance: estimatedPrice / 0.05,
-      });
-
-      if (response.data.success) {
-        onBuySuccess(userEmail, estimatedPrice / 0.05);
-      } else {
-        console.error('Error updating user metadata');
-      }
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      dispatch(updateTransactionStatus(paymentData.payment_id, 'Failed'));
-    }
-  };
-
-  const checkPaymentStatus = (paymentId) => {
-    return transactions[paymentId];
-  };
-
   const handleBuyClick = () => {
     if (selectedCurrency && amount && parseFloat(amount) >= parseFloat(minimumAmount)) {
       setTransactionStatus('Awaiting Payment');
 
-      // Start the countdown
-      const countdownTime = 120; // 2 minutes in seconds
-      setCountdown(countdownTime);
+      // Deduct the amount of $RANDY being bought from the total amount
+      onBuySuccess(userEmail, estimatedPrice / 0.05);
 
       // Create payment
       axios
@@ -172,43 +124,10 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
         .then((response) => {
           setPaymentCreated(true);
           setPaymentData(response.data);
-          setTransactionStatus('Processing');
-
-          // Process the Solana payment
-          processPayment();
-
-          // Start polling for payment status
-          const pollInterval = setInterval(() => {
-            const status = checkPaymentStatus(response.data.payment_id);
-            if (status === 'Complete') {
-              clearInterval(pollInterval);
-              setTransactionStatus('Complete');
-              setCountdown(null);
-              onBuySuccess(userEmail, estimatedPrice / 0.05);
-            } else if (status === 'Failed') {
-              clearInterval(pollInterval);
-              setTransactionStatus('Failed');
-              setCountdown(null);
-            }
-          }, 5000); // Poll every 5 seconds
-
-          // Set a timeout to mark the transaction as failed after 2 minutes
-          const failTimeout = setTimeout(() => {
-            clearInterval(pollInterval);
-            setTransactionStatus('Failed');
-            setCountdown(null);
-          }, countdownTime * 1000);
-
-          // Clean up the interval and timeout on component unmount
-          return () => {
-            clearInterval(pollInterval);
-            clearTimeout(failTimeout);
-          };
         })
         .catch((error) => {
           console.error('Error creating payment:', error);
           setTransactionStatus(null);
-          setCountdown(null);
         });
     }
   };
@@ -293,12 +212,6 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
                 Amount to Send: {paymentData.pay_amount} {paymentData.pay_currency}
               </Typography>
             </Box>
-          )}
-
-          {countdown !== null && (
-            <Typography variant="body1" gutterBottom>
-              Time remaining: {countdown} seconds
-            </Typography>
           )}
         </Box>
       )}
