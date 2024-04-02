@@ -5,12 +5,16 @@ import PresaleForm from './components/PresaleForm';
 import SignUpForm from './components/SignUpForm';
 import Header from './components/Header';
 import RandyBar from './components/RandyBar';
+import Spline from '@splinetool/react-spline';
 
+const TOTAL_RANDY_SUPPLY = 21000000;
 
 function App() {
   const [walletAddress, setWalletAddress] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [userMetadata, setUserMetadata] = useState({});
+  const [remainingRandy, setRemainingRandy] = useState(TOTAL_RANDY_SUPPLY);
 
   useEffect(() => {
     // Check wallet connection when the component mounts
@@ -53,9 +57,19 @@ function App() {
     setUserEmail(email);
   };
 
-  const handleBuySuccess = (purchasedRandyAmount) => {
-    // Handle the successful purchase of RANDY tokens
-    console.log('Purchased RANDY amount:', purchasedRandyAmount);
+  const handleBuySuccess = (userEmail, purchasedRandyAmount) => {
+    // Update the user's metadata
+    const updatedUserMetadata = {
+      ...userMetadata,
+      [userEmail]: {
+        ...userMetadata[userEmail],
+        Randy_Balance: (userMetadata[userEmail]?.Randy_Balance || 0) + purchasedRandyAmount,
+      },
+    };
+    setUserMetadata(updatedUserMetadata);
+
+    // Update the global "Amount of Randy Left"
+    setRemainingRandy((prevRemainingRandy) => prevRemainingRandy - purchasedRandyAmount);
   };
 
   return (
@@ -66,7 +80,12 @@ function App() {
         userEmail={userEmail}
         onConnectWallet={connectWallet}
       />
-      <RandyBar userEmail={userEmail} onBuySuccess={handleBuySuccess} />
+      <Spline scene="https://prod.spline.design/oaDQ0P-eu17gfqBy/scene.splinecode" />
+      <RandyBar
+        userEmail={userEmail}
+        remainingRandy={remainingRandy}
+        userMetadata={userMetadata}
+      />
       {!isAuthenticated ? (
         <SignUpForm onSignUp={handleSignUp} />
       ) : (

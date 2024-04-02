@@ -1,36 +1,12 @@
 // RandyBar.js
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Typography, LinearProgress } from '@mui/material';
 import randyCoinImage from '../assets/randyCoin.png';
 
 const TOTAL_RANDY_SUPPLY = 21000000;
 
-function RandyBar({ userEmail, onBuySuccess }) {
-  const [remainingRandy, setRemainingRandy] = useState(TOTAL_RANDY_SUPPLY);
-  const [userRandyBalance, setUserRandyBalance] = useState(0);
-
-  useEffect(() => {
-    // Simulating fetching user's RANDY balance from the server
-    const fetchUserRandyBalance = async () => {
-      // Replace this with your actual API call to fetch the user's RANDY balance
-      const response = await Promise.resolve({ balance: 1000 });
-      setUserRandyBalance(response.balance);
-    };
-
-    if (userEmail) {
-      fetchUserRandyBalance();
-    }
-  }, [userEmail]);
-
-  useEffect(() => {
-    if (onBuySuccess) {
-      onBuySuccess((boughtRandy) => {
-        setRemainingRandy((prevRemainingRandy) => prevRemainingRandy - boughtRandy);
-        setUserRandyBalance((prevBalance) => prevBalance + boughtRandy);
-      });
-    }
-  }, [onBuySuccess]);
-
+function RandyBar({ userEmail, remainingRandy, userMetadata }) {
+  const userRandyBalance = userMetadata[userEmail]?.Randy_Balance || 0;
   const remainingPercentage = (remainingRandy / TOTAL_RANDY_SUPPLY) * 100;
 
   return (
@@ -54,10 +30,10 @@ function RandyBar({ userEmail, onBuySuccess }) {
         </Box>
       </Box>
       <Typography variant="body1" gutterBottom>
-        Your RANDY Balance: {userRandyBalance.toLocaleString()}
+        Your $RANDY Balance: {userRandyBalance.toLocaleString()}
       </Typography>
     </Box>
   );
 }
 
-export default RandyBar;
+export default RandyBar;  

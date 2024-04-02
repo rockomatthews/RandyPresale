@@ -1,8 +1,10 @@
-// PresaleForm.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button, Typography, Select, MenuItem, TextField, Box } from '@mui/material';
 import TransactionStatus from './TransactionStatus';
+import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateTransactionStatus } from '../store/actions/transactionActions';
 
 const API_URL = 'https://api.nowpayments.io/v1';
 const API_KEY = '9BTTTGS-3S0M680-P3TMZJK-4HA6C3N'; // Replace with your actual API key
@@ -17,19 +19,24 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
   const [paymentCreated, setPaymentCreated] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
   const [transactionStatus, setTransactionStatus] = useState(null);
+  const [countdown, setCountdown] = useState(null);
+
+  const dispatch = useDispatch();
+  const transactions = useSelector((state) => state.transactions);
 
   useEffect(() => {
     // Get available currencies
-    axios.get(`${API_URL}/currencies`, {
-      headers: {
-        'x-api-key': API_KEY
-      }
-    })
-      .then(response => {
+    axios
+      .get(`${API_URL}/currencies`, {
+        headers: {
+          'x-api-key': API_KEY,
+        },
+      })
+      .then((response) => {
         const sortedCurrencies = response.data.currencies.sort();
         setCurrencies(sortedCurrencies);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Error fetching currencies:', error);
       });
   }, []);
@@ -37,20 +44,21 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
   useEffect(() => {
     if (selectedCurrency) {
       // Get minimum payment amount
-      axios.get(`${API_URL}/min-amount`, {
-        headers: {
-          'x-api-key': API_KEY
-        },
-        params: {
-          currency_from: selectedCurrency,
-          currency_to: 'usd'
-        }
-      })
-        .then(response => {
+      axios
+        .get(`${API_URL}/min-amount`, {
+          headers: {
+            'x-api-key': API_KEY,
+          },
+          params: {
+            currency_from: selectedCurrency,
+            currency_to: 'usd',
+          },
+        })
+        .then((response) => {
           const minAmount = response.data.min_amount;
           setMinimumAmount(minAmount);
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Error fetching minimum payment amount:', error);
         });
     }
@@ -67,22 +75,23 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
   const handlePreviewClick = () => {
     if (selectedCurrency && amount && parseFloat(amount) >= parseFloat(minimumAmount)) {
       // Get estimated price
-      axios.get(`${API_URL}/estimate`, {
-        headers: {
-          'x-api-key': API_KEY
-        },
-        params: {
-          amount: amount,
-          currency_from: selectedCurrency,
-          currency_to: 'usd'
-        }
-      })
-        .then(response => {
+      axios
+        .get(`${API_URL}/estimate`, {
+          headers: {
+            'x-api-key': API_KEY,
+          },
+          params: {
+            amount: amount,
+            currency_from: selectedCurrency,
+            currency_to: 'usd',
+          },
+        })
+        .then((response) => {
           const estimatedAmount = response.data.estimated_amount;
           setEstimatedPrice(estimatedAmount);
           setShowPreview(true);
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Error fetching estimated price:', error);
         });
     } else {
@@ -91,44 +100,115 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
     }
   };
 
+  const processPayment = async () => {
+    try {
+      const connection = new Connection('https://api.mainnet-beta.solana.com');
+      const recipientPublicKey = new PublicKey('53ERkAByR893E5iFu25XemeKUJ12cAgY87J5Zcagw3nj');
+
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: new PublicKey(walletAddress),
+          toPubkey: recipientPublicKey,
+          lamports: estimatedPrice * 1e9, // Convert to lamports (1 SOL = 1e9 lamports)
+        })
+      );
+
+      const { signature } = await window.solana.signAndSendTransaction(transaction);
+      await connection.confirmTransaction(signature);
+
+      console.log('Payment processed successfully');
+      dispatch(updateTransactionStatus(paymentData.payment_id, 'Complete'));
+
+      // Update user metadata
+      const response = await axios.post('/api/update-metadata', {
+        userEmail,
+        randyBalance: estimatedPrice / 0.05,
+      });
+
+      if (response.data.success) {
+        onBuySuccess(userEmail, estimatedPrice / 0.05);
+      } else {
+        console.error('Error updating user metadata');
+      }
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      dispatch(updateTransactionStatus(paymentData.payment_id, 'Failed'));
+    }
+  };
+
+  const checkPaymentStatus = (paymentId) => {
+    return transactions[paymentId];
+  };
+
   const handleBuyClick = () => {
     if (selectedCurrency && amount && parseFloat(amount) >= parseFloat(minimumAmount)) {
       setTransactionStatus('Awaiting Payment');
 
+      // Start the countdown
+      const countdownTime = 120; // 2 minutes in seconds
+      setCountdown(countdownTime);
+
       // Create payment
-      axios.post(`${API_URL}/payment`, {
-        price_amount: estimatedPrice,
-        price_currency: 'usd',
-        pay_currency: selectedCurrency,
-        ipn_callback_url: 'https://your-domain.com/ipn-handler', // Replace with your IPN endpoint URL
-        order_id: `${userEmail}_${Date.now()}`, // Generate a unique order ID using user email and timestamp
-        order_description: 'Purchase of RANDY tokens',
-        success_url: 'https://your-success-url.com', // Replace with your own success URL
-        cancel_url: 'https://your-cancel-url.com' // Replace with your own cancel URL
-      }, {
-        headers: {
-          'x-api-key': API_KEY,
-          'Content-Type': 'application/json'
-        }
-      })
-        .then(response => {
+      axios
+        .post(
+          `${API_URL}/payment`,
+          {
+            price_amount: estimatedPrice,
+            price_currency: 'usd',
+            pay_currency: selectedCurrency,
+            ipn_callback_url: 'https://randy-presale.vercel.app/api/ipn-handler',
+            order_id: `${userEmail}_${Date.now()}`,
+            order_description: 'Purchase of RANDY tokens',
+            success_url: 'https://randy-presale.vercel.app/success',
+            cancel_url: 'https://randy-presale.vercel.app/cancel',
+          },
+          {
+            headers: {
+              'x-api-key': API_KEY,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+        .then((response) => {
           setPaymentCreated(true);
           setPaymentData(response.data);
           setTransactionStatus('Processing');
 
-          // Simulate processing delay
-          setTimeout(() => {
-            // Invoke the onBuySuccess callback with the purchased RANDY amount
-            if (onBuySuccess) {
-              const purchasedRandyAmount = estimatedPrice / 0.05;
-              onBuySuccess(purchasedRandyAmount);
+          // Process the Solana payment
+          processPayment();
+
+          // Start polling for payment status
+          const pollInterval = setInterval(() => {
+            const status = checkPaymentStatus(response.data.payment_id);
+            if (status === 'Complete') {
+              clearInterval(pollInterval);
               setTransactionStatus('Complete');
+              setCountdown(null);
+              onBuySuccess(userEmail, estimatedPrice / 0.05);
+            } else if (status === 'Failed') {
+              clearInterval(pollInterval);
+              setTransactionStatus('Failed');
+              setCountdown(null);
             }
-          }, 3000); // Adjust the delay as needed
+          }, 5000); // Poll every 5 seconds
+
+          // Set a timeout to mark the transaction as failed after 2 minutes
+          const failTimeout = setTimeout(() => {
+            clearInterval(pollInterval);
+            setTransactionStatus('Failed');
+            setCountdown(null);
+          }, countdownTime * 1000);
+
+          // Clean up the interval and timeout on component unmount
+          return () => {
+            clearInterval(pollInterval);
+            clearTimeout(failTimeout);
+          };
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Error creating payment:', error);
           setTransactionStatus(null);
+          setCountdown(null);
         });
     }
   };
@@ -141,14 +221,9 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
       <Typography variant="h6" gutterBottom>
         Select Payment Currency
       </Typography>
-      <Select
-        value={selectedCurrency}
-        onChange={handleCurrencyChange}
-        fullWidth
-        margin="normal"
-      >
+      <Select value={selectedCurrency} onChange={handleCurrencyChange} fullWidth margin="normal">
         <MenuItem value="">Select currency</MenuItem>
-        {currencies.map(currency => (
+        {currencies.map((currency) => (
           <MenuItem key={currency} value={currency}>
             {currency}
           </MenuItem>
@@ -218,6 +293,12 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
                 Amount to Send: {paymentData.pay_amount} {paymentData.pay_currency}
               </Typography>
             </Box>
+          )}
+
+          {countdown !== null && (
+            <Typography variant="body1" gutterBottom>
+              Time remaining: {countdown} seconds
+            </Typography>
           )}
         </Box>
       )}
