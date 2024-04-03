@@ -1,16 +1,46 @@
 // RandyBar.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, LinearProgress } from '@mui/material';
-import randyCoinImage from '../assets/randyCoin.png';
 
+const COUNTDOWN_DATE = new Date('June 4, 2024 00:00:00').getTime();
 const TOTAL_RANDY_SUPPLY = 21000000;
 
-function RandyBar({ userEmail, remainingRandy, userMetadata }) {
-  const userRandyBalance = userMetadata[userEmail]?.Randy_Balance || 0;
+function RandyBar({ userEmail, remainingRandy, userMetadata, onBuySuccess }) {
+  const userRandyBalance = userMetadata && userMetadata[userEmail] ? userMetadata[userEmail].Randy_Balance || 0 : 0;
   const remainingPercentage = (remainingRandy / TOTAL_RANDY_SUPPLY) * 100;
+  const [countdown, setCountdown] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+
+  useEffect(() => {
+    const countdownInterval = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = COUNTDOWN_DATE - now;
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      setCountdown({ days, hours, minutes, seconds });
+    }, 1000);
+
+    return () => {
+      clearInterval(countdownInterval);
+    };
+  }, []);
 
   return (
     <Box marginTop={4}>
+      <Typography variant="h5" gutterBottom fontWeight="bold" align="center">
+        Days left to buy $RANDY
+      </Typography>
+      <Typography variant="h5" gutterBottom fontWeight="bold" align="center">
+        {countdown.days} Days {countdown.hours} Hours {countdown.minutes} Minutes {countdown.seconds} Seconds
+      </Typography>
       <Typography variant="h6" gutterBottom>
         RANDY Tokens Remaining: {remainingRandy.toLocaleString()} / {TOTAL_RANDY_SUPPLY.toLocaleString()}
       </Typography>
@@ -27,7 +57,7 @@ function RandyBar({ userEmail, remainingRandy, userMetadata }) {
           style={{ transform: 'translate(-50%, -50%)' }}
         >
           <img
-            src={randyCoinImage}
+            src="https://firebasestorage.googleapis.com/v0/b/randy-presale.appspot.com/o/randyCoin.png?alt=media&token=3c5c1a86-4bbd-4a70-9ad7-020f05be4e22"
             alt="Progress Indicator"
             style={{ width: '75px', height: '75px' }}
           />

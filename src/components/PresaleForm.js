@@ -185,6 +185,9 @@ function PresaleForm({ walletAddress, userEmail, onBuySuccess }) {
               <Typography variant="body1" gutterBottom>
                 You will receive: {(estimatedPrice / 0.05).toFixed(2)} RANDY
               </Typography>
+              <Typography variant="h6" gutterBottom>
+                **BEFORE YOU BUY, SIGN IN TO PHANTOM ABOVE**
+              </Typography>
               <Button
                 variant="contained"
                 color="secondary"
