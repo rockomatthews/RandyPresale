@@ -53,7 +53,11 @@ function SignUpForm({ onSignUp }) {
       onSignUp(result.user.email);
     } catch (error) {
       console.error('Error signing up with Google:', error);
-      setError(error.message);
+      if (error.code === 'auth/popup-blocked') {
+        setError('Pop-up blocked. Please allow pop-ups from this site to sign in with Google.');
+      } else {
+        setError(error.message);
+      }
     }
   };
 
@@ -63,9 +67,9 @@ function SignUpForm({ onSignUp }) {
         Sign Up
       </Typography>
       {error && (
-        <Typography color="error" gutterBottom>
-          {error}
-        </Typography>
+      <Typography color="error" gutterBottom>
+        {error}
+      </Typography>
       )}
       <form onSubmit={handleEmailSignUp}>
         <TextField
